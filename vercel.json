@@ -1,19 +1,35 @@
 {
     "version": 2,
     "public": true,
+    "regions": ["fra1"],
     "builds": [
-      { "src": "api/bot.js", "use": "@vercel/node" },
-      { "src": "api/_middleware.js", "use": "@vercel/node" }
+      {
+        "src": "api/bot.js",
+        "use": "@vercel/node",
+        "config": {
+          "includeFiles": ["package.json"]
+        }
+      }
     ],
     "routes": [
       {
         "src": "/api/bot",
         "dest": "/api/bot.js",
-        "methods": ["POST"]
+        "methods": ["POST"],
+        "headers": {
+          "Cache-Control": "no-cache"
+        }
       },
       {
         "src": "/",
-        "dest": "/api/_middleware.js"
+        "dest": "/api/bot.js",
+        "methods": ["GET"]
       }
-    ]
+    ],
+    "functions": {
+      "api/bot.js": {
+        "memory": 1024,
+        "maxDuration": 10
+      }
+    }
   }

@@ -2,62 +2,57 @@ require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const express = require('express');
 
-// Инициализация
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const app = express();
 
-// Middleware
-app.use(express.json());
+// Middleware для быстрой обработки JSON
+app.use(express.json({ limit: '1mb' }));
 
-// ========== Обработчики команд ========== //
+// Быстрые обработчики команд
 bot.start((ctx) => {
-  console.log(`Новый пользователь: ${ctx.from.id}`);
-  return ctx.reply('Бот успешно работает на Vercel! 🚀');
+  ctx.reply('🚀 Бот работает на Vercel!').catch(console.error);
 });
 
-bot.command('shop', (ctx) => {
-  return ctx.reply('Откройте магазин:', {
+bot.command('menu', (ctx) => {
+  ctx.reply('Выберите действие:', {
     reply_markup: {
       inline_keyboard: [
-        [{
-          text: '🛍️ Магазин',
-          web_app: { url: process.env.WEBAPP_URL || 'https://your-web-app.vercel.app' }
-        }]
+        [{ text: 'Открыть магазин', web_app: { url: process.env.WEBAPP_URL } }]
       ]
     }
-  });
+  }).catch(console.error);
 });
 
-// ========== Обработчик для Vercel ========== //
-app.post('/api/bot', (req, res) => {
+// Оптимизированный обработчик вебхука
+app.post('/api/bot', async (req, res) => {
   try {
-    console.log('Получен вебхук:', req.body);
-    return bot.handleUpdate(req.body, res);
+    // Важно: не ждем завершения обработки
+    bot.handleUpdate(req.body, res);
+    
+    // Отправляем подтверждение Telegram сразу
+    res.status(200).end();
   } catch (err) {
-    console.error('Ошибка обработки вебхука:', err);
-    return res.status(200).send();
+    console.error('Webhook error:', err);
+    res.status(200).end(); // Всегда отвечаем Telegram
   }
 });
 
-// Проверка работоспособности
+// Health check endpoint
 app.get('/', (req, res) => {
-  res.status(200).json({ 
+  res.json({ 
     status: 'running',
-    bot: 'Telegram Bot',
-    webhook: 'POST /api/bot'
+    timestamp: Date.now()
   });
 });
 
-// ========== Экспорт для Vercel ========== //
+// Экспорт для Vercel
 module.exports = app;
 
-// ========== Локальный запуск ========== //
+// Локальный запуск (для разработки)
 if (process.env.NODE_ENV === 'development') {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
-    console.log(`Сервер запущен на порту ${PORT}`);
-    bot.launch()
-      .then(() => console.log('Бот запущен в режиме разработки'))
-      .catch(console.error);
+    console.log(`Local server: http://localhost:${PORT}`);
+    bot.launch().then(() => console.log('Bot started'));
   });
 }
